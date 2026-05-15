@@ -1,6 +1,8 @@
 "use client";
-import TelegramStatus from "@/components/TelegramStatus";
+
 import Header from "@/components/Header";
+import BottomNav from "@/components/BottomNav";
+
 export default function Home() {
   return (
     <main className="min-h-screen bg-gray-100">
@@ -26,6 +28,8 @@ export default function Home() {
         </div>
 
       </div>
+
+      <BottomNav />
 
     </main>
   );
