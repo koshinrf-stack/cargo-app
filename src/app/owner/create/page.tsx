@@ -117,6 +117,7 @@ export default function CreateCargoPage() {
       min-h-screen
       bg-gray-100
       p-6
+      pb-32
     ">
 
       <h1 className="
@@ -157,18 +158,13 @@ export default function CreateCargoPage() {
         </select>
 
         <input
-          placeholder="
-          Расстояние км
-          "
-
+          placeholder="Расстояние км"
           value={distance}
-
           onChange={(e) =>
             setDistance(
               e.target.value
             )
           }
-
           className="
             p-4
             rounded-xl
@@ -176,18 +172,13 @@ export default function CreateCargoPage() {
         />
 
         <input
-          placeholder="
-          Вес кг
-          "
-
+          placeholder="Вес кг"
           value={weight}
-
           onChange={(e) =>
             setWeight(
               e.target.value
             )
           }
-
           className="
             p-4
             rounded-xl
@@ -219,18 +210,13 @@ export default function CreateCargoPage() {
         )}
 
         <input
-          placeholder="
-          Откуда
-          "
-
+          placeholder="Откуда"
           value={fromCity}
-
           onChange={(e) =>
             setFromCity(
               e.target.value
             )
           }
-
           className="
             p-4
             rounded-xl
@@ -238,18 +224,13 @@ export default function CreateCargoPage() {
         />
 
         <input
-          placeholder="
-          Куда
-          "
-
+          placeholder="Куда"
           value={toCity}
-
           onChange={(e) =>
             setToCity(
               e.target.value
             )
           }
-
           className="
             p-4
             rounded-xl
@@ -260,7 +241,6 @@ export default function CreateCargoPage() {
           onClick={
             calculatePrice
           }
-
           className="
             bg-blue-600
             text-white
@@ -268,40 +248,49 @@ export default function CreateCargoPage() {
             rounded-xl
           "
         >
-          Рассчитать
-        </button>
-
-        <button
-          onClick={
-            saveCargo
-          }
-
-          className="
-            bg-green-600
-            text-white
-            p-4
-            rounded-xl
-          "
-        >
-          Добавить груз
+          Рассчитать стоимость
         </button>
 
         {price !== null && (
 
-          <div className="
-            bg-white
-            p-6
-            rounded-xl
-            text-xl
-            font-bold
-          ">
+          <>
 
-            Стоимость:
-            {" "}
-            {price}
-            ₽
+            <div className="
+              bg-white
+              p-6
+              rounded-xl
+              text-xl
+              font-bold
+              text-center
+            ">
 
-          </div>
+              Стоимость:
+              {" "}
+              {price}
+              ₽
+
+            </div>
+
+            <button
+              onClick={
+                saveCargo
+              }
+
+              className="
+                bg-green-600
+                text-white
+                p-4
+                rounded-xl
+                text-lg
+                font-semibold
+              "
+            >
+
+              Добавить груз к перевозке
+
+            </button>
+
+          </>
 
         )}
 
