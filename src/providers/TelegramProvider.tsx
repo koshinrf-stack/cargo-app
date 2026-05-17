@@ -1,27 +1,26 @@
 "use client";
 
-import React, {
-  createContext,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { telegramAuth } from "@/services/telegramAuth";
 
 type TelegramUser = {
   id: number;
   first_name?: string;
+  last_name?: string;
   username?: string;
+  language_code?: string;
 };
 
 type TelegramContextValue = {
-  user: TelegramUser | null;
   isTelegram: boolean;
+  ready: boolean;
+  user: TelegramUser | null;
 };
 
 const TelegramContext = createContext<TelegramContextValue>({
-  user: null,
   isTelegram: false,
+  ready: false,
+  user: null,
 });
 
 export function useTelegram() {
@@ -33,47 +32,38 @@ export default function TelegramProvider({
 }: {
   children: React.ReactNode;
 }) {
-  const [mounted, setMounted] = useState(false);
-  const [user, setUser] = useState<TelegramUser | null>(null);
   const [isTelegram, setIsTelegram] = useState(false);
+  const [ready, setReady] = useState(false);
+  const [user, setUser] = useState<TelegramUser | null>(null);
 
   useEffect(() => {
-    setMounted(true);
-
     const tg = (window as any).Telegram?.WebApp;
 
-    if (tg) {
-      tg.ready();
+    if (!tg) return;
 
-      setIsTelegram(true);
+    tg.ready();
+    setIsTelegram(true);
+    setReady(true);
 
-      const telegramUser = tg.initDataUnsafe?.user;
+    const telegramUser = tg.initDataUnsafe?.user;
 
-      if (telegramUser) {
-        setUser({
-          id: telegramUser.id,
-          first_name: telegramUser.first_name,
-          username: telegramUser.username,
-        });
-      }
+    if (telegramUser) {
+      setUser({
+        id: telegramUser.id,
+        first_name: telegramUser.first_name,
+        last_name: telegramUser.last_name,
+        username: telegramUser.username,
+        language_code: telegramUser.language_code,
+      });
+
+      telegramAuth(telegramUser).catch(console.error);
     }
   }, []);
 
   const value = useMemo(
-    () => ({
-      user,
-      isTelegram,
-    }),
-    [user, isTelegram]
+    () => ({ isTelegram, ready, user }),
+    [isTelegram, ready, user]
   );
 
-  if (!mounted) {
-    return null;
-  }
-
-  return (
-    <TelegramContext.Provider value={value}>
-      {children}
-    </TelegramContext.Provider>
-  );
+  return <TelegramContext.Provider value={value}>{children}</TelegramContext.Provider>;
 }
