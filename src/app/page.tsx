@@ -3,16 +3,11 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 
-import { useTelegram }
-from "@/providers/TelegramProvider";
-
-import { checkUser }
-from "@/services/checkUser";
+import { useTelegram } from "@/providers/TelegramProvider";
+import { checkUser } from "@/services/checkUser";
 
 export default function Home() {
-
-  const router =
-    useRouter();
+  const router = useRouter();
 
   const { user } =
     useTelegram();
@@ -34,6 +29,18 @@ export default function Home() {
       );
 
     if (
+      result.error
+    ) {
+
+      console.error(
+        result.error
+      );
+
+      return;
+
+    }
+
+    if (
       !result.data
     ) {
 
@@ -46,8 +53,7 @@ export default function Home() {
     }
 
     if (
-      result.data.role
-      ===
+      result.data.role ===
       "owner"
     ) {
 
@@ -60,8 +66,7 @@ export default function Home() {
     }
 
     if (
-      result.data.role
-      ===
+      result.data.role ===
       "carrier"
     ) {
 
@@ -69,7 +74,13 @@ export default function Home() {
         "/carrier"
       );
 
+      return;
+
     }
+
+    router.push(
+      "/register"
+    );
 
   }
 

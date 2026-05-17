@@ -7,220 +7,104 @@ import { supabase } from "@/lib/supabase";
 import { useTelegram } from "@/providers/TelegramProvider";
 
 export default function RegisterOwner() {
-
   const router = useRouter();
+  const { user } = useTelegram();
 
-  const { user } =
-    useTelegram();
-
-  const [
-    company,
-    setCompany
-  ] = useState("");
-
-  const [
-    inn,
-    setInn
-  ] = useState("");
-
-  const [
-    phone,
-    setPhone
-  ] = useState("");
-
-  const [
-    city,
-    setCity
-  ] = useState("");
+  const [company, setCompany] = useState("");
+  const [inn, setInn] = useState("");
+  const [phone, setPhone] = useState("");
+  const [city, setCity] = useState("");
+  const [loading, setLoading] = useState(false);
 
   async function finishRegistration() {
-
     if (!user?.id) {
-
-      alert(
-        "Telegram user not found"
-      );
-
+      alert("Telegram user not found");
       return;
-
     }
 
-    const { error } =
-      await supabase
+    setLoading(true);
 
-        .from("users")
+    const { data: existingUser, error: selectError } = await supabase
+      .from("users")
+      .select("*")
+      .eq("telegram_id", user.id)
+      .single();
 
-        .insert({
+    if (selectError && selectError.code !== "PGRST116") {
+      console.error(selectError);
+      alert(JSON.stringify(selectError.message));
+      setLoading(false);
+      return;
+    }
 
-          telegram_id:
-            user.id,
+    if (existingUser) {
+      router.push("/owner");
+      setLoading(false);
+      return;
+    }
 
-          role:
-            "owner",
-
-          company_name:
-            company,
-
-          inn:
-            inn,
-
-          phone:
-            phone,
-
-          city:
-            city,
-
-        });
+    const { error } = await supabase.from("users").insert({
+      telegram_id: user.id,
+      role: "owner",
+      company_name: company,
+      inn: inn,
+      phone: phone,
+      city: city,
+    });
 
     if (error) {
-
-      console.error(
-        error
-      );
-
-      alert(
-        JSON.stringify(
-          error
-        )
-      );
-
+      console.error(error);
+      alert(JSON.stringify(error.message));
+      setLoading(false);
       return;
-
     }
 
-    alert(
-      "Регистрация завершена"
-    );
-
-    router.push(
-      "/owner"
-    );
-
+    alert("Регистрация завершена");
+    router.push("/owner");
+    setLoading(false);
   }
 
   return (
+    <main className="min-h-screen bg-gray-100 p-6">
+      <h1 className="text-3xl font-bold mb-8">Регистрация грузовладельца</h1>
 
-    <main className="
-      min-h-screen
-      bg-gray-100
-      p-6
-    ">
-
-      <h1 className="
-        text-3xl
-        font-bold
-        mb-8
-      ">
-
-        Регистрация грузовладельца
-
-      </h1>
-
-      <div className="
-        flex
-        flex-col
-        gap-4
-      ">
-
+      <div className="flex flex-col gap-4">
         <input
-          placeholder="
-          Название фирмы
-          "
-
+          placeholder="Название фирмы"
           value={company}
-
-          onChange={(e)=>
-            setCompany(
-              e.target.value
-            )
-          }
-
-          className="
-          p-4
-          rounded-xl
-          "
+          onChange={(e) => setCompany(e.target.value)}
+          className="p-4 rounded-xl"
         />
 
         <input
-          placeholder="
-          ИНН
-          "
-
+          placeholder="ИНН"
           value={inn}
-
-          onChange={(e)=>
-            setInn(
-              e.target.value
-            )
-          }
-
-          className="
-          p-4
-          rounded-xl
-          "
+          onChange={(e) => setInn(e.target.value)}
+          className="p-4 rounded-xl"
         />
 
         <input
-          placeholder="
-          Телефон
-          "
-
+          placeholder="Телефон"
           value={phone}
-
-          onChange={(e)=>
-            setPhone(
-              e.target.value
-            )
-          }
-
-          className="
-          p-4
-          rounded-xl
-          "
+          onChange={(e) => setPhone(e.target.value)}
+          className="p-4 rounded-xl"
         />
 
         <input
-          placeholder="
-          Город
-          "
-
+          placeholder="Город"
           value={city}
-
-          onChange={(e)=>
-            setCity(
-              e.target.value
-            )
-          }
-
-          className="
-          p-4
-          rounded-xl
-          "
+          onChange={(e) => setCity(e.target.value)}
+          className="p-4 rounded-xl"
         />
 
         <button
-
-          onClick={
-            finishRegistration
-          }
-
-          className="
-          bg-blue-600
-          text-white
-          p-4
-          rounded-xl
-          "
-
+          onClick={finishRegistration}
+          disabled={loading}
+          className="bg-blue-600 text-white p-4 rounded-xl disabled:opacity-60"
         >
-
-          Завершить регистрацию
-
+          {loading ? "Сохраняем..." : "Завершить регистрацию"}
         </button>
-
       </div>
-
     </main>
-
   );
-
 }
