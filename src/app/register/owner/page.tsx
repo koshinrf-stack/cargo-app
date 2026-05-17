@@ -80,7 +80,7 @@ export default function RegisterOwner() {
 
       alert(
         JSON.stringify(
-          error.message
+          error
         )
       );
 
