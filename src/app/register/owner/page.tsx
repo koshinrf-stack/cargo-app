@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-
 import { supabase } from "@/lib/supabase";
 import { useTelegram } from "@/providers/TelegramProvider";
 
@@ -17,60 +16,66 @@ export default function RegisterOwner() {
   const [loading, setLoading] = useState(false);
 
   async function finishRegistration() {
-    if (!user?.id) {
-      alert("Telegram user not found");
+    const telegramId = user?.id || 0;
+
+    if (!company || !phone) {
+      alert("Заполните название организации и телефон");
       return;
     }
 
     setLoading(true);
 
-    const { data: existingUser, error: selectError } = await supabase
+    // Проверяем, существует ли уже пользователь
+    const { data: existing } = await supabase
       .from("users")
       .select("*")
-      .eq("telegram_id", user.id)
-      .single();
+      .eq("telegram_id", telegramId)
+      .maybeSingle();
 
-    if (selectError && selectError.code !== "PGRST116") {
-      console.error(selectError);
-      alert(JSON.stringify(selectError.message));
-      setLoading(false);
-      return;
-    }
-
-    if (existingUser) {
+    if (existing) {
+      // Уже зарегистрирован
       router.push("/owner");
       setLoading(false);
       return;
     }
 
+    // Создаём нового пользователя
     const { error } = await supabase.from("users").insert({
-      telegram_id: user.id,
+      telegram_id: telegramId,
       role: "owner",
       company_name: company,
-      inn: inn,
+      inn: inn || null,
       phone: phone,
-      city: city,
+      city: city || null,
+      rating: 5,
+      is_admin: false,
     });
 
     if (error) {
       console.error(error);
-      alert(JSON.stringify(error.message));
-      setLoading(false);
-      return;
+      alert("Ошибка: " + error.message);
+    } else {
+      alert("Регистрация завершена!");
+      router.push("/owner");
     }
 
-    alert("Регистрация завершена");
-    router.push("/owner");
     setLoading(false);
   }
 
   return (
     <main className="min-h-screen bg-gray-100 p-6">
+      <button
+        onClick={() => router.push("/register")}
+        className="text-blue-600 text-sm mb-4 flex items-center gap-1"
+      >
+        ← Назад
+      </button>
+
       <h1 className="text-3xl font-bold mb-8">Регистрация грузовладельца</h1>
 
       <div className="flex flex-col gap-4">
         <input
-          placeholder="Название фирмы"
+          placeholder="Название фирмы *"
           value={company}
           onChange={(e) => setCompany(e.target.value)}
           className="p-4 rounded-xl"
@@ -84,7 +89,7 @@ export default function RegisterOwner() {
         />
 
         <input
-          placeholder="Телефон"
+          placeholder="Телефон *"
           value={phone}
           onChange={(e) => setPhone(e.target.value)}
           className="p-4 rounded-xl"

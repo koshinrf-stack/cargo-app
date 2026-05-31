@@ -1,47 +1,47 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useTelegram } from "@/providers/TelegramProvider";
 import { supabase } from "@/lib/supabase";
 
 export default function Home() {
   const router = useRouter();
-  const [status, setStatus] = useState("Загрузка...");
+  const { user, ready } = useTelegram();
 
   useEffect(() => {
+    if (!ready) return;
+
     checkUser();
-  }, []);
+  }, [user, ready]);
 
   async function checkUser() {
-    setStatus("Проверяем базу данных...");
+    // Используем реальный telegram_id или 0 для браузера
+    const telegramId = user?.id || 0;
 
-    // Напрямую ищем админа
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from("users")
       .select("*")
-      .eq("telegram_id", 0)
+      .eq("telegram_id", telegramId)
       .maybeSingle();
 
-    if (error) {
-      setStatus("Ошибка: " + error.message);
-      return;
-    }
-
-    if (data) {
-      setStatus("Админ найден, переходим...");
+    if (!data) {
+      // Пользователь не найден — отправляем на регистрацию
       router.push("/register");
       return;
     }
 
-    setStatus("Пользователь не найден, переходим на регистрацию");
-    router.push("/register");
+    if (data.is_admin) {
+      router.push("/register");
+      return;
+    }
+
+    router.push(data.role === "owner" ? "/owner" : "/carrier");
   }
 
   return (
     <main className="min-h-screen bg-gray-100 flex items-center justify-center">
-      <div className="text-center">
-        <div className="text-2xl font-bold">{status}</div>
-      </div>
+      <div className="text-2xl font-bold">Загрузка...</div>
     </main>
   );
 }
