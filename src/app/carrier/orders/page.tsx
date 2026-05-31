@@ -17,8 +17,6 @@ type Shipment = {
   payment_type: string;
   payment_term: string;
   created_at: string;
-  from_lat: number | null;
-  from_lng: number | null;
   distance_km?: number;
 };
 
@@ -34,6 +32,36 @@ const PAYMENT_TERM_LABELS: Record<string, string> = {
   "100_after": "100% после выгрузки",
 };
 
+const GEOAPIFY_KEY = process.env.NEXT_PUBLIC_GEOAPIFY_KEY || "";
+
+// Получаем координаты города через Geoapify
+async function getCityCoordinates(
+  cityName: string
+): Promise<{ lat: number; lng: number } | null> {
+  if (!GEOAPIFY_KEY) return null;
+
+  try {
+    const url = `https://api.geoapify.com/v1/geocode/search?text=${encodeURIComponent(
+      cityName
+    )}&format=json&apiKey=${GEOAPIFY_KEY}&limit=1`;
+
+    const response = await fetch(url);
+    const data = await response.json();
+
+    if (data.results && data.results.length > 0) {
+      return {
+        lat: data.results[0].lat,
+        lng: data.results[0].lon,
+      };
+    }
+    return null;
+  } catch (error) {
+    console.error("Geoapify error:", error);
+    return null;
+  }
+}
+
+// Формула гаверсинуса для расчёта расстояния
 function getDistanceFromLatLng(
   lat1: number,
   lng1: number,
@@ -61,16 +89,29 @@ export default function CarrierOrders() {
   const [loading, setLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState<Shipment | null>(null);
   const [taking, setTaking] = useState(false);
-  const [userCoords, setUserCoords] = useState<{
-    lat: number;
-    lng: number;
-  } | null>(null);
+  const [carrierCity, setCarrierCity] = useState<string | null>(null);
   const [nearbyMode, setNearbyMode] = useState(false);
-  const [gettingLocation, setGettingLocation] = useState(false);
+  const [geoLoading, setGeoLoading] = useState(false);
 
   useEffect(() => {
+    if (!user?.id) return;
+    loadCarrierProfile();
+  }, [user]);
+
+  async function loadCarrierProfile() {
+    const { data: profile } = await supabase
+      .from("users")
+      .select("city")
+      .eq("telegram_id", user!.id)
+      .single();
+
+    if (profile?.city) {
+      setCarrierCity(profile.city);
+    }
+
+    // Загружаем заказы (сначала все)
     loadOrders(false);
-  }, []);
+  }
 
   async function loadOrders(withNearby: boolean) {
     setLoading(true);
@@ -89,115 +130,76 @@ export default function CarrierOrders() {
 
     let ordersData = data || [];
 
-    if (withNearby && userCoords) {
-      ordersData = ordersData
-        .map((order) => {
-          if (order.from_lat && order.from_lng) {
-            const dist = getDistanceFromLatLng(
-              userCoords.lat,
-              userCoords.lng,
-              order.from_lat,
-              order.from_lng
-            );
-            return { ...order, distance_km: dist };
-          }
-          return order;
-        })
-        .filter((order) => {
-          if (order.distance_km === undefined) return false;
-          return order.distance_km <= 100;
-        })
-        .sort((a, b) => {
-          const distA = a.distance_km ?? 9999;
-          const distB = b.distance_km ?? 9999;
-          return distA - distB;
+    // Если включён режим "рядом" и есть город перевозчика
+    if (withNearby && carrierCity && ordersData.length > 0) {
+      setGeoLoading(true);
+
+      // Получаем координаты города перевозчика
+      const myCoords = await getCityCoordinates(carrierCity);
+
+      if (myCoords) {
+        // Получаем уникальные города отправления
+        const cityNames = [...new Set(ordersData.map((o) => o.from_city))];
+
+        // Получаем координаты всех городов
+        const coordPromises = cityNames.map(async (city) => {
+          const coords = await getCityCoordinates(city);
+          return { city, coords };
         });
+
+        const allCoords = await Promise.all(coordPromises);
+        const cityCoordsMap: Record<
+          string,
+          { lat: number; lng: number } | null
+        > = {};
+        allCoords.forEach(({ city, coords }) => {
+          cityCoordsMap[city] = coords;
+        });
+
+        // Считаем расстояния и фильтруем
+        ordersData = ordersData
+          .map((order) => {
+            const coords = cityCoordsMap[order.from_city];
+            if (coords) {
+              const dist = getDistanceFromLatLng(
+                myCoords.lat,
+                myCoords.lng,
+                coords.lat,
+                coords.lng
+              );
+              return { ...order, distance_km: dist };
+            }
+            return order;
+          })
+          .filter((order) => {
+            if (order.distance_km === undefined) return false;
+            return order.distance_km <= 100;
+          })
+          .sort((a, b) => {
+            const distA = a.distance_km ?? 9999;
+            const distB = b.distance_km ?? 9999;
+            return distA - distB;
+          });
+      }
+
+      setGeoLoading(false);
     }
 
     setOrders(ordersData);
     setLoading(false);
   }
 
-  function getTelegramLocation() {
-    setGettingLocation(true);
-
-    const tg = (window as any).Telegram?.WebApp;
-
-    // Telegram Location API
-    if (tg?.LocationManager?.getLocation) {
-      tg.LocationManager.getLocation((data: any) => {
-        if (data?.latitude && data?.longitude) {
-          setUserCoords({
-            lat: data.latitude,
-            lng: data.longitude,
-          });
-          setNearbyMode(true);
-          loadOrdersWithCoords(data.latitude, data.longitude);
-        } else {
-          alert("Не удалось получить местоположение");
-          setGettingLocation(false);
-        }
-      });
-    } else {
+  async function toggleNearbyMode() {
+    if (!carrierCity) {
       alert(
-        "Геолокация недоступна. Убедитесь, что вы открыли приложение из Telegram."
+        "У вас не указан город в профиле. Добавьте город при регистрации."
       );
-      setGettingLocation(false);
-    }
-  }
-
-  async function loadOrdersWithCoords(lat: number, lng: number) {
-    setLoading(true);
-
-    const { data, error } = await supabase
-      .from("shipments")
-      .select("*")
-      .eq("status", "searching_carrier")
-      .order("created_at", { ascending: false });
-
-    if (error) {
-      console.error(error);
-      setLoading(false);
-      setGettingLocation(false);
       return;
     }
 
-    let ordersData = (data || [])
-      .map((order) => {
-        if (order.from_lat && order.from_lng) {
-          const dist = getDistanceFromLatLng(
-            lat,
-            lng,
-            order.from_lat,
-            order.from_lng
-          );
-          return { ...order, distance_km: dist };
-        }
-        return order;
-      })
-      .filter((order) => {
-        if (order.distance_km === undefined) return false;
-        return order.distance_km <= 100;
-      })
-      .sort((a, b) => {
-        const distA = a.distance_km ?? 9999;
-        const distB = b.distance_km ?? 9999;
-        return distA - distB;
-      });
-
-    setOrders(ordersData);
-    setLoading(false);
-    setGettingLocation(false);
-  }
-
-  function toggleNearbyMode() {
-    if (nearbyMode) {
-      setNearbyMode(false);
-      setUserCoords(null);
-      loadOrders(false);
-    } else {
-      getTelegramLocation();
-    }
+    const newMode = !nearbyMode;
+    setNearbyMode(newMode);
+    await loadOrders(newMode);
   }
 
   async function takeOrder(order: Shipment) {
@@ -210,7 +212,7 @@ export default function CarrierOrders() {
 
     const { data: profile, error: profileError } = await supabase
       .from("users")
-      .select("id")
+      .select("id, company_name")
       .eq("telegram_id", user.id)
       .single();
 
@@ -219,6 +221,13 @@ export default function CarrierOrders() {
       setTaking(false);
       return;
     }
+
+    // Получаем данные владельца заказа
+    const { data: shipment } = await supabase
+      .from("shipments")
+      .select("*, users!shipments_owner_id_fkey(telegram_id, company_name)")
+      .eq("id", order.id)
+      .single();
 
     const { error } = await supabase
       .from("shipments")
@@ -235,6 +244,19 @@ export default function CarrierOrders() {
       alert("Ошибка: " + error.message);
       setTaking(false);
       return;
+    }
+
+    // Отправляем уведомление владельцу
+    const ownerTelegramId = (shipment as any)?.users?.telegram_id;
+    if (ownerTelegramId) {
+      fetch("/api/notify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          telegramId: ownerTelegramId,
+          message: `🚚 <b>Ваш заказ принят!</b>\n\n${order.from_city} → ${order.to_city}\nСтоимость: ${order.price.toLocaleString()} ₽\n\nПеревозчик: ${profile.company_name || "Не указано"}`,
+        }),
+      }).catch(console.error);
     }
 
     alert("Заказ принят! Перейдите в «Активные заказы».");
@@ -257,21 +279,21 @@ export default function CarrierOrders() {
         <h1 className="text-3xl font-bold">
           {nearbyMode ? "Заказы рядом" : "База заказов"}
         </h1>
+        {geoLoading && (
+          <span className="text-sm text-gray-400">Определяем расстояние...</span>
+        )}
       </div>
 
-      {/* Кнопка геолокации */}
+      {/* Кнопка переключения режима */}
       <button
         onClick={toggleNearbyMode}
-        disabled={gettingLocation}
-        className={`w-full p-4 rounded-xl mb-6 text-lg font-medium disabled:opacity-60 ${
+        className={`w-full p-4 rounded-xl mb-6 text-lg font-medium ${
           nearbyMode
             ? "bg-green-600 text-white"
             : "bg-white border-2 border-green-500 text-green-600"
         }`}
       >
-        {gettingLocation
-          ? "Определяем местоположение..."
-          : nearbyMode
+        {nearbyMode
           ? "✅ Заказы рядом (до 100 км)"
           : "📍 Показать заказы рядом"}
       </button>
@@ -317,7 +339,7 @@ export default function CarrierOrders() {
         </div>
       )}
 
-      {/* Модальное окно */}
+      {/* Модальное окно с деталями */}
       {selectedOrder && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-2xl p-6 w-full max-w-md max-h-[80vh] overflow-y-auto">
@@ -392,6 +414,7 @@ export default function CarrierOrders() {
         </div>
       )}
 
+      {/* Кнопка Назад */}
       <div className="fixed bottom-6 left-6 right-6">
         <button
           onClick={() => router.push("/carrier")}

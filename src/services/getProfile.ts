@@ -4,19 +4,23 @@ export async function getProfile(
   telegramId: number
 ) {
 
-  const { data, error } =
-    await supabase
+  const {
+    data,
+    error
+  } = await supabase
 
-      .from("users")
+    .from(
+      "users"
+    )
 
-      .select("*")
+    .select("*")
 
-      .eq(
-        "telegram_id",
-        telegramId
-      )
+    .eq(
+      "telegram_id",
+      telegramId
+    )
 
-      .maybeSingle();
+    .maybeSingle();
 
   return {
     data,

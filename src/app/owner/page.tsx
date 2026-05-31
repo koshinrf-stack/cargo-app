@@ -239,6 +239,13 @@ export default function OwnerPage() {
 
         </button>
 
+      <button
+  onClick={() => router.push("/owner/history")}
+  className="bg-white border p-5 rounded-2xl w-full text-lg"
+>
+  История заказов
+</button>
+
       </div>
 
     </main>
