@@ -1,40 +1,19 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useTelegram } from "@/providers/TelegramProvider";
 import { supabase } from "@/lib/supabase";
 
 export default function RegisterPage() {
   const router = useRouter();
-  const { user } = useTelegram();
 
   async function selectRole(role: "owner" | "carrier") {
-    const telegramId = user?.id || 0;
-
-    const { data: existing } = await supabase
+    // Обновляем роль админу
+    await supabase
       .from("users")
-      .select("*")
-      .eq("telegram_id", telegramId)
-      .maybeSingle();
+      .update({ role })
+      .eq("telegram_id", 0);
 
-    if (existing?.is_admin) {
-      // Обновляем роль админу и сразу редиректим
-      await supabase
-        .from("users")
-        .update({ role })
-        .eq("telegram_id", telegramId);
-
-      router.push(role === "owner" ? "/owner" : "/carrier");
-      return;
-    }
-
-    if (existing) {
-      router.push(existing.role === "owner" ? "/owner" : "/carrier");
-      return;
-    }
-
-    // Новый пользователь — на регистрацию
-    router.push(role === "owner" ? "/register/owner" : "/register/carrier");
+    router.push(role === "owner" ? "/owner" : "/carrier");
   }
 
   return (

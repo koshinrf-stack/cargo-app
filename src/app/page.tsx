@@ -1,57 +1,47 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useTelegram } from "@/providers/TelegramProvider";
-import { checkUser } from "@/services/checkUser";
-
-const DEV_TELEGRAM_ID = 0;
+import { supabase } from "@/lib/supabase";
 
 export default function Home() {
   const router = useRouter();
-  const { user, ready } = useTelegram();
+  const [status, setStatus] = useState("Загрузка...");
 
   useEffect(() => {
-    if (!ready) return;
+    checkUser();
+  }, []);
 
-    const telegramId = user?.id || DEV_TELEGRAM_ID;
-    loadUser(telegramId);
-  }, [user, ready]);
+  async function checkUser() {
+    setStatus("Проверяем базу данных...");
 
-  async function loadUser(telegramId: number) {
-    const result = await checkUser(telegramId);
+    // Напрямую ищем админа
+    const { data, error } = await supabase
+      .from("users")
+      .select("*")
+      .eq("telegram_id", 0)
+      .maybeSingle();
 
-    if (result.error) {
-      console.error(result.error);
+    if (error) {
+      setStatus("Ошибка: " + error.message);
       return;
     }
 
-    if (!result.data) {
+    if (data) {
+      setStatus("Админ найден, переходим...");
       router.push("/register");
       return;
     }
 
-    if (result.data.is_admin) {
-      router.push("/register");
-      return;
-    }
-
-    if (result.data.role === "owner") {
-      router.push("/owner");
-      return;
-    }
-
-    if (result.data.role === "carrier") {
-      router.push("/carrier");
-      return;
-    }
-
+    setStatus("Пользователь не найден, переходим на регистрацию");
     router.push("/register");
   }
 
   return (
     <main className="min-h-screen bg-gray-100 flex items-center justify-center">
-      <div className="text-2xl font-bold">Загрузка...</div>
+      <div className="text-center">
+        <div className="text-2xl font-bold">{status}</div>
+      </div>
     </main>
   );
 }
