@@ -4,7 +4,6 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useTelegram } from "@/providers/TelegramProvider";
-import BackButton from "@/components/BackButton";
 
 export default function RegisterOwner() {
   const router = useRouter();
@@ -34,7 +33,6 @@ export default function RegisterOwner() {
       .maybeSingle();
 
     if (existing) {
-      // Уже зарегистрирован
       router.push("/owner");
       setLoading(false);
       return;
@@ -64,8 +62,13 @@ export default function RegisterOwner() {
   }
 
   return (
-    <main className="min-h-screen bg-gray-100 p-6 relative">
-      <BackButton />
+    <main className="min-h-screen bg-gray-100 p-6">
+      <button
+        onClick={() => router.push("/register")}
+        className="text-blue-600 text-sm mb-4 flex items-center gap-1"
+      >
+        ← Назад
+      </button>
 
       <h1 className="text-3xl font-bold mb-8">Регистрация грузовладельца</h1>
 

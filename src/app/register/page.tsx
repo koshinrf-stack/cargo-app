@@ -9,8 +9,10 @@ export default function RegisterPage() {
   const { user } = useTelegram();
 
   async function selectRole(role: "owner" | "carrier") {
+    // В браузере user.id = undefined, в Telegram = реальный ID
     const telegramId = user?.id || 0;
 
+    // Проверяем, есть ли пользователь в базе
     const { data: existing } = await supabase
       .from("users")
       .select("*")
@@ -18,20 +20,20 @@ export default function RegisterPage() {
       .maybeSingle();
 
     if (existing) {
-      await supabase
-        .from("users")
-        .update({ role })
-        .eq("telegram_id", telegramId);
-
+      // Пользователь уже зарегистрирован
+      if (existing.is_admin) {
+        // Админ — обновляем роль и редиректим
+        await supabase
+          .from("users")
+          .update({ role })
+          .eq("telegram_id", telegramId);
+      }
       router.push(role === "owner" ? "/owner" : "/carrier");
       return;
     }
 
-    if (role === "owner") {
-      router.push("/register/owner");
-    } else {
-      router.push("/register/carrier");
-    }
+    // Новый пользователь — на регистрацию
+    router.push(role === "owner" ? "/register/owner" : "/register/carrier");
   }
 
   return (
