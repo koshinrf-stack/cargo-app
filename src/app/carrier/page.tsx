@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useTelegram } from "@/providers/TelegramProvider";
+import BackButton from "@/components/BackButton";
 
 type Shipment = {
   id: string;
@@ -252,7 +253,7 @@ export default function CarrierOrders() {
   }
 
   return (
-    <main className="min-h-screen bg-gray-100 p-6 pb-24">
+    <main className="min-h-screen bg-gray-100 p-6 pb-24 relative">
       <div className="flex items-center justify-between mb-4">
         <h1 className="text-3xl font-bold">
           {nearbyMode ? "Заказы рядом" : "База заказов"}
@@ -392,14 +393,7 @@ export default function CarrierOrders() {
         </div>
       )}
 
-      <div className="fixed bottom-6 left-6 right-6">
-        <button
-          onClick={() => router.push("/carrier")}
-          className="w-full bg-gray-200 text-gray-800 p-4 rounded-2xl text-lg font-medium"
-        >
-          ← Назад
-        </button>
-      </div>
+      <BackButton />
     </main>
   );
 }

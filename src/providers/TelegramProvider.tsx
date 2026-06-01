@@ -37,26 +37,42 @@ export default function TelegramProvider({
   const [user, setUser] = useState<TelegramUser | null>(null);
 
   useEffect(() => {
-    const tg = (window as any).Telegram?.WebApp;
+    if (typeof window === "undefined") return;
 
-    if (!tg) return;
+    const tg = window?.Telegram?.WebApp;
 
-    tg.ready();
-    setIsTelegram(true);
-    setReady(true);
+    if (!tg) {
+      setReady(true);
+      return;
+    }
 
-    const telegramUser = tg.initDataUnsafe?.user;
+    try {
+      tg.ready();
+      setIsTelegram(true);
+      setReady(true);
 
-    if (telegramUser) {
-      setUser({
-        id: telegramUser.id,
-        first_name: telegramUser.first_name,
-        last_name: telegramUser.last_name,
-        username: telegramUser.username,
-        language_code: telegramUser.language_code,
-      });
+      const telegramUser = tg.initDataUnsafe?.user;
 
-      telegramAuth(telegramUser).catch(console.error);
+      if (telegramUser) {
+        setUser({
+          id: telegramUser.id,
+          first_name: telegramUser.first_name,
+          last_name: telegramUser.last_name,
+          username: telegramUser.username,
+          language_code: telegramUser.language_code,
+        });
+
+        telegramAuth(telegramUser).catch((err: unknown) => {
+          if (err instanceof Error) {
+            console.error("Ошибка аутентификации:", err.message);
+          } else {
+            console.error("Неизвестная ошибка аутентификации");
+          }
+        });
+      }
+    } catch (error) {
+      console.error("Ошибка инициализации Telegram:", error);
+      setReady(true);
     }
   }, []);
 
@@ -65,5 +81,9 @@ export default function TelegramProvider({
     [isTelegram, ready, user]
   );
 
-  return <TelegramContext.Provider value={value}>{children}</TelegramContext.Provider>;
+  return (
+    <TelegramContext.Provider value={value}>
+      {children}
+    </TelegramContext.Provider>
+  );
 }

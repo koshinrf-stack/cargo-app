@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useTelegram } from "@/providers/TelegramProvider";
+import BackButton from "@/components/BackButton";
 
 const GEOAPIFY_KEY = process.env.NEXT_PUBLIC_GEOAPIFY_KEY || "";
 
@@ -260,14 +261,8 @@ export default function CreateCargoPage() {
   }
 
   return (
-    <main className="min-h-screen bg-gray-100 p-6 pb-32">
-      {/* Кнопка Назад */}
-      <button
-        onClick={() => router.push("/owner")}
-        className="text-blue-600 text-sm mb-4 flex items-center gap-1"
-      >
-        ← Назад
-      </button>
+    <main className="min-h-screen bg-gray-100 p-6 pb-32 relative">
+      <BackButton />
 
       <h1 className="text-3xl font-bold mb-8">Добавление груза</h1>
 

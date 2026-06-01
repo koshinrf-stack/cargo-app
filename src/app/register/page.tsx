@@ -11,7 +11,6 @@ export default function RegisterPage() {
   async function selectRole(role: "owner" | "carrier") {
     const telegramId = user?.id || 0;
 
-    // Проверяем, существует ли пользователь
     const { data: existing } = await supabase
       .from("users")
       .select("*")
@@ -19,7 +18,6 @@ export default function RegisterPage() {
       .maybeSingle();
 
     if (existing) {
-      // Обновляем роль и редиректим
       await supabase
         .from("users")
         .update({ role })
@@ -29,7 +27,6 @@ export default function RegisterPage() {
       return;
     }
 
-    // Новый пользователь — отправляем на форму регистрации
     if (role === "owner") {
       router.push("/register/owner");
     } else {
